@@ -148,7 +148,7 @@ function mockBridge(): Bridge {
         description: "Handy's recommended all-around pick for English dictation.",
         mb: 731,
         installed: false,
-        license: "cc-by-4.0",
+        license: "NVIDIA Open Model License",
       },
       {
         id: "whisper-large-v3-turbo",
@@ -192,6 +192,14 @@ function mockBridge(): Bridge {
     case "home-model-ready":
       state.stt_model_ready = true;
       state.stt_model_label = "Parakeet English 0.6B";
+      break;
+    case "home-transcribing":
+      state.stt_model_ready = true;
+      state.stt_model_label = "Parakeet English 0.6B";
+      state.listen_phase = "transcribing";
+      break;
+    case "settings-stt-downloading":
+      state.stt_download = { state: "downloading", done: 280, total: 731 };
       break;
     case "home-received":
       state.bridge = "received";
