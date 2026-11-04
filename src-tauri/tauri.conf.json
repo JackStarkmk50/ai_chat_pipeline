@@ -1,0 +1,43 @@
+src/components.tsx
+src/bridge.ts
+src/App.tsx
+src-tauri/src/main.rs
+src-tauri/src/main.rs
+
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Reply Voice",
+  "version": "0.3.0",
+  "identifier": "app.replyvoice",
+  "build": {
+    "frontendDist": "../dist",
+    "devUrl": "http://localhost:1420",
+    "beforeDevCommand": "npm run dev",
+    "beforeBuildCommand": "npm run build"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "Reply Voice",
+        "width": 440,
+        "height": 780,
+        "minWidth": 400,
+        "minHeight": 620,
+        "resizable": true
+      }
+    ],
+    "security": {
+      "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'"
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.ico"
+    ]
+  }
+}
