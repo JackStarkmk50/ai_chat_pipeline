@@ -27,7 +27,7 @@ dependencies = [
  "tauri",
  "tauri-build",
  "tauri-plugin-opener",
- "transcribe-cpp-sys",
+ "transcribe-cpp",
 ]
 
 [[package]]

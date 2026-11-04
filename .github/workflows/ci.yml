@@ -77,3 +77,8 @@ jobs:
       - run: npm run build
       - name: Build the app
         run: cargo build --release -p ai_chat_pipeline --locked
+      - name: Verify the transcribe runtime libs staged beside the app
+        shell: bash
+        run: |
+          ls -la src-tauri/transcribe-libs/
+          test "$(ls -A src-tauri/transcribe-libs/)" || { echo "staging produced no libraries"; exit 1; }
