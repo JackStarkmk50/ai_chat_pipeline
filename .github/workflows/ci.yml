@@ -16,6 +16,14 @@ jobs:
         with:
           version: 1.4.309.0
           cache: true
+      - name: Provide the SPIRV-Headers cmake package (ggml-vulkan requires it)
+        shell: bash
+        run: |
+          if [ ! -f "$VULKAN_SDK/lib/cmake/SPIRV-Headers/SPIRV-HeadersConfig.cmake" ] && [ ! -f "$VULKAN_SDK/Lib/cmake/SPIRV-Headers/SPIRV-HeadersConfig.cmake" ]; then
+            git clone --depth 1 --branch vulkan-sdk-1.4.309.0 https://github.com/KhronosGroup/SPIRV-Headers /tmp/spirv-headers
+            cmake -S /tmp/spirv-headers -B /tmp/spirv-headers/build -DCMAKE_INSTALL_PREFIX="$VULKAN_SDK"
+            cmake --build /tmp/spirv-headers/build --target install
+          fi
       - name: Linux system libraries (ALSA mic capture, OpenBLAS for ggml)
         if: runner.os == 'Linux'
         run: |
@@ -52,6 +60,14 @@ jobs:
         with:
           version: 1.4.309.0
           cache: true
+      - name: Provide the SPIRV-Headers cmake package (ggml-vulkan requires it)
+        shell: bash
+        run: |
+          if [ ! -f "$VULKAN_SDK/lib/cmake/SPIRV-Headers/SPIRV-HeadersConfig.cmake" ] && [ ! -f "$VULKAN_SDK/Lib/cmake/SPIRV-Headers/SPIRV-HeadersConfig.cmake" ]; then
+            git clone --depth 1 --branch vulkan-sdk-1.4.309.0 https://github.com/KhronosGroup/SPIRV-Headers /tmp/spirv-headers
+            cmake -S /tmp/spirv-headers -B /tmp/spirv-headers/build -DCMAKE_INSTALL_PREFIX="$VULKAN_SDK"
+            cmake --build /tmp/spirv-headers/build --target install
+          fi
       - name: Linux windowing libraries
         if: runner.os == 'Linux'
         run: |
