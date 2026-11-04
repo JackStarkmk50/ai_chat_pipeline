@@ -42,8 +42,8 @@ export function ListenBlock({
         {recording
           ? "Listening through the microphone. Stop when you're done."
           : transcribing
-            ? `Finishing ${state.listen_pending} piece${state.listen_pending === 1 ? "" : "s"}…`
-            : `Uses ${state.stt_model_label} on this computer. The words never leave it.`}
+            ? "Turning your speech into text…"
+            : `Uses ${state.stt_model_label} on this computer. Transcription runs locally - nothing is sent automatically.`}
       </div>
       {state.transcript.length > 0 ? (
         <div className="mt-2 max-h-40 overflow-y-auto rounded-lg bg-rvline/30 p-2.5 text-[14px] leading-relaxed text-rvtx">
