@@ -17,6 +17,9 @@ pub struct Config {
     pub address: String,
     /// Shared secret the sender must present. Empty means the receiver stays off.
     pub token: String,
+    /// Dictation speech model id from stt-manifest.json. Empty uses the first
+    /// installed entry in list order.
+    pub stt_model: String,
     pub first_run_done: bool,
 }
 
@@ -28,6 +31,7 @@ impl Default for Config {
             start_with_computer: false,
             address: DEFAULT_ADDRESS.into(),
             token: String::new(),
+            stt_model: String::new(),
             first_run_done: false,
         }
     }

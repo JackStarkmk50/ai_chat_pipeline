@@ -1,11 +1,12 @@
 import type { UiState } from "../bridge";
 import { bridge } from "../bridge";
 import { GhostButton, Header, OutlineButton, Pill, Screen } from "../components";
+import { ListenBlock } from "./ListenBlock";
 
 export function BridgePill({ state }: { state: UiState }) {
   if (state.link_error) return <Pill kind="warn">Link problem: {state.link_error}</Pill>;
   if (state.bridge === "received") return <Pill kind="ok">Reply received</Pill>;
-  if (state.bridge === "waiting") return <Pill kind="note">Listening on this computer</Pill>;
+  if (state.bridge === "waiting") return <Pill kind="note">Receiver ready on this computer</Pill>;
   return <Pill kind="warn">Bridge not connected</Pill>;
 }
 
@@ -14,7 +15,7 @@ export function Home({ state, openSettings }: { state: UiState; openSettings: ()
   const heading = state.speaking
     ? "Reading a reply aloud…"
     : linked
-      ? "Listening on this computer."
+      ? "Receiver ready on this computer."
       : "Nothing can reach this app yet.";
   const subtext = state.speaking
     ? "The newest reply is playing."
@@ -49,6 +50,7 @@ export function Home({ state, openSettings }: { state: UiState; openSettings: ()
           <div className="mt-1.5 text-[13px] text-rvwarn">{state.last_error}</div>
         ) : null}
       </div>
+      <ListenBlock state={state} openSettings={openSettings} />
     </Screen>
   );
 }

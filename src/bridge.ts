@@ -10,6 +10,17 @@ export type DownloadState =
   | { state: "failed"; message: string }
   | { state: "done" };
 
+export type ListenPhase = "idle" | "recording" | "transcribing";
+
+export interface SttModelInfo {
+  id: string;
+  label: string;
+  description: string;
+  mb: number;
+  installed: boolean;
+  license: string;
+}
+
 export interface UiState {
   bridge: BridgeName;
   link_error: string | null;
@@ -23,6 +34,16 @@ export interface UiState {
   can_replay: boolean;
   first_run_done: boolean;
   last_error: string | null;
+  listen_supported: boolean;
+  listen_phase: ListenPhase;
+  listen_pending: number;
+  transcript: string[];
+  listen_error: string | null;
+  stt_model_label: string;
+  stt_model_ready: boolean;
+  stt_has_manifest: boolean;
+  stt_download: DownloadState;
+  stt_models: SttModelInfo[];
 }
 
 export interface Draft {
@@ -31,6 +52,7 @@ export interface Draft {
   start_with_computer: boolean;
   address: string;
   token: string;
+  stt_model: string;
   first_run_done: boolean;
 }
 
@@ -45,6 +67,10 @@ export interface Bridge {
   cancelDownload(): Promise<void>;
   replay(): Promise<string | null>;
   hideWindow(): Promise<void>;
+  listenStart(): Promise<string | null>;
+  listenStop(): Promise<void>;
+  downloadStt(id: string): Promise<string | null>;
+  cancelSttDownload(): Promise<void>;
   onState(cb: (s: UiState) => void): void;
 }
 
@@ -57,6 +83,7 @@ const DEFAULT_DRAFT: Draft = {
   start_with_computer: false,
   address: "127.0.0.1:47615",
   token: "",
+  stt_model: "",
   first_run_done: false,
 };
 
@@ -75,6 +102,10 @@ function tauriBridge(): Bridge | null {
     cancelDownload: () => invoke<void>("cancel_download"),
     replay: () => invoke<string | null>("replay_last"),
     hideWindow: () => invoke<void>("hide_window"),
+    listenStart: () => invoke<string | null>("listen_start"),
+    listenStop: () => invoke<void>("listen_stop"),
+    downloadStt: (id) => invoke<string | null>("download_stt_model", { id }),
+    cancelSttDownload: () => invoke<void>("cancel_stt_download"),
     onState(cb) {
       listen<UiState>("rv-state", (e) => cb(e.payload));
     },
@@ -98,6 +129,41 @@ function mockBridge(): Bridge {
     can_replay: false,
     first_run_done: true,
     last_error: null,
+    listen_supported: true,
+    listen_phase: "idle",
+    listen_pending: 0,
+    transcript: [],
+    listen_error: null,
+    stt_model_label: "",
+    stt_model_ready: false,
+    stt_has_manifest: true,
+    stt_download: { state: "idle" },
+    stt_models: [
+      {
+        id: "parakeet-unified-en-0.6b",
+        label: "Parakeet English 0.6B",
+        description: "Handy's recommended all-around pick for English dictation.",
+        mb: 731,
+        installed: false,
+        license: "cc-by-4.0",
+      },
+      {
+        id: "whisper-large-v3-turbo",
+        label: "Whisper Large v3 Turbo",
+        description: "More accurate; best with a GPU.",
+        mb: 886,
+        installed: false,
+        license: "mit",
+      },
+      {
+        id: "whisper-small",
+        label: "Whisper Small",
+        description: "Smallest download; lower accuracy.",
+        mb: 270,
+        installed: false,
+        license: "mit",
+      },
+    ],
   };
   const draft: Draft = { ...DEFAULT_DRAFT };
   let listeners: ((s: UiState) => void)[] = [];
@@ -106,6 +172,23 @@ function mockBridge(): Bridge {
   switch (hash) {
     case "home-not-connected":
       state.bridge = "not_connected";
+      break;
+    case "home-recording":
+      state.stt_model_ready = true;
+      state.stt_model_label = "Parakeet English 0.6B";
+      state.listen_phase = "recording";
+      break;
+    case "home-transcript":
+      state.stt_model_ready = true;
+      state.stt_model_label = "Parakeet English 0.6B";
+      state.transcript = [
+        "Just replied to Sarah's message about the project meeting.",
+        "Also sent her the updated timeline.",
+      ];
+      break;
+    case "home-model-ready":
+      state.stt_model_ready = true;
+      state.stt_model_label = "Parakeet English 0.6B";
       break;
     case "home-received":
       state.bridge = "received";
@@ -210,6 +293,30 @@ function mockBridge(): Bridge {
     },
     replay: async () => null,
     hideWindow: async () => {},
+    listenStart: async () => {
+      if (!state.stt_model_ready) return "No speech model on this computer yet. Download one in Settings.";
+      state.listen_phase = "recording";
+      emit();
+      return null;
+    },
+    listenStop: async () => {
+      state.listen_phase = "idle";
+      emit();
+    },
+    downloadStt: async (id) => {
+      state.stt_download = { state: "downloading", done: 100, total: 731 };
+      const m = state.stt_models.find((x) => x.id === id);
+      if (m) m.installed = true;
+      state.stt_model_ready = true;
+      state.stt_model_label = m?.label ?? "";
+      draft.stt_model = id;
+      emit();
+      return null;
+    },
+    cancelSttDownload: async () => {
+      state.stt_download = { state: "idle" };
+      emit();
+    },
     onState(cb) {
       listeners.push(cb);
     },

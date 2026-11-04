@@ -3,6 +3,7 @@ import type { Draft, UiState } from "../bridge";
 import { bridge } from "../bridge";
 import { GhostButton, Header, PrimaryButton, Screen, TextField } from "../components";
 import { BridgePill } from "./Home";
+import { SttBlock } from "./SttBlock";
 import { VoiceBlock } from "./VoiceBlock";
 
 export function Settings({
@@ -64,6 +65,9 @@ export function Settings({
           className="w-full"
         />
       </div>
+      <hr className="border-rvline" />
+      <div className="text-[15px] font-semibold text-rvtx">Dictation</div>
+      <SttBlock state={state} draft={draft} setDraft={setDraft} />
       <hr className="border-rvline" />
       <div className="text-[15px] font-semibold text-rvtx">Startup</div>
       <div className="flex items-center justify-between">

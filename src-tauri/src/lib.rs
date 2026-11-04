@@ -6,8 +6,14 @@ use std::sync::Mutex;
 use std::time::Duration;
 
 use reply_voice::config::{self, Config};
+#[cfg(any(
+    all(target_os = "windows", target_arch = "x86_64"),
+    all(target_os = "linux", target_arch = "x86_64")
+))]
+use reply_voice::listen_service::{ListenService, Phase as ListenPhase};
 use reply_voice::service::{Service, VoiceKind};
 use reply_voice::status::Bridge;
+use reply_voice::stt_models::{self, SttInstaller, SttManifest};
 use reply_voice::voice::Download;
 use serde::{Deserialize, Serialize};
 use tauri::{Emitter, Manager, State};
@@ -16,6 +22,13 @@ struct AppState {
     service: Mutex<Service>,
     saved: Mutex<Config>,
     config_path: PathBuf,
+    stt_manifest: Option<SttManifest>,
+    stt_installer: SttInstaller,
+    #[cfg(any(
+        all(target_os = "windows", target_arch = "x86_64"),
+        all(target_os = "linux", target_arch = "x86_64")
+    ))]
+    listen: Mutex<ListenService>,
 }
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -25,6 +38,7 @@ struct Draft {
     start_with_computer: bool,
     address: String,
     token: String,
+    stt_model: String,
     first_run_done: bool,
 }
 
@@ -36,6 +50,7 @@ impl From<Config> for Draft {
             start_with_computer: c.start_with_computer,
             address: c.address,
             token: c.token,
+            stt_model: c.stt_model,
             first_run_done: c.first_run_done,
         }
     }
@@ -49,6 +64,7 @@ impl From<Draft> for Config {
             start_with_computer: d.start_with_computer,
             address: d.address,
             token: d.token,
+            stt_model: d.stt_model,
             first_run_done: d.first_run_done,
         }
     }
@@ -77,9 +93,61 @@ struct UiState {
     can_replay: bool,
     first_run_done: bool,
     last_error: Option<String>,
+    listen_supported: bool,
+    listen_phase: String,
+    listen_pending: u32,
+    transcript: Vec<String>,
+    listen_error: Option<String>,
+    stt_model_label: String,
+    stt_model_ready: bool,
+    stt_has_manifest: bool,
+    stt_download: DownloadUi,
+    stt_models: Vec<SttModelUi>,
 }
 
-fn ui_state(svc: &Service, cfg: &Config) -> UiState {
+#[derive(Serialize, Clone, PartialEq)]
+struct SttModelUi {
+    id: String,
+    label: String,
+    description: String,
+    mb: u64,
+    installed: bool,
+    license: String,
+}
+
+fn stt_models_ui(manifest: &Option<SttManifest>) -> Vec<SttModelUi> {
+    let base = stt_models::stt_dir();
+    manifest
+        .as_ref()
+        .map(|m| {
+            m.models
+                .iter()
+                .map(|e| SttModelUi {
+                    id: e.id.clone(),
+                    label: e.label.clone(),
+                    description: e.description.clone(),
+                    mb: e.size / 1_000_000,
+                    installed: stt_models::installed(&base, e),
+                    license: e.license.clone(),
+                })
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+fn ui_state(app: &AppState) -> UiState {
+    let cfg = app.saved.lock().unwrap();
+    let svc = app.service.lock().unwrap();
+    let (listen_phase, listen_pending, transcript, listen_error, stt_model_label, stt_model_ready) =
+        listen_bits(app);
+    let stt_download = match app.stt_installer.get() {
+        Download::Idle => DownloadUi::Idle,
+        Download::Downloading { done, total } => DownloadUi::Downloading { done, total },
+        Download::Failed(m) => DownloadUi::Failed { message: m },
+        Download::Done => DownloadUi::Done,
+    };
+    let svc = &*svc;
+    let cfg = &*cfg;
     let snap = svc.shared.get();
     let (bridge, link_error) = match &snap.bridge {
         Bridge::NotConnected => ("not_connected", None),
@@ -111,14 +179,57 @@ fn ui_state(svc: &Service, cfg: &Config) -> UiState {
         can_replay: snap.last_reply.is_some(),
         first_run_done: cfg.first_run_done,
         last_error: snap.last_error.clone(),
+        listen_supported: stt_models::LISTEN_SUPPORTED,
+        listen_phase,
+        listen_pending,
+        transcript,
+        listen_error,
+        stt_model_label,
+        stt_model_ready,
+        stt_has_manifest: app.stt_manifest.is_some(),
+        stt_download,
+        stt_models: stt_models_ui(&app.stt_manifest),
     }
+}
+
+#[cfg(any(
+    all(target_os = "windows", target_arch = "x86_64"),
+    all(target_os = "linux", target_arch = "x86_64")
+))]
+fn listen_bits(
+    app: &AppState,
+) -> (String, u32, Vec<String>, Option<String>, String, bool) {
+    let l = app.listen.lock().unwrap();
+    let s = l.shared.get();
+    let phase = match s.phase {
+        ListenPhase::Idle if l.active() => "recording",
+        ListenPhase::Idle => "idle",
+        ListenPhase::Recording => "recording",
+        ListenPhase::Transcribing => "transcribing",
+    };
+    (
+        phase.to_string(),
+        s.pending as u32,
+        s.lines,
+        s.last_error,
+        l.model_label.clone(),
+        l.model_ready,
+    )
+}
+
+#[cfg(not(any(
+    all(target_os = "windows", target_arch = "x86_64"),
+    all(target_os = "linux", target_arch = "x86_64")
+)))]
+fn listen_bits(
+    _app: &AppState,
+) -> (String, u32, Vec<String>, Option<String>, String, bool) {
+    ("idle".into(), 0, Vec::new(), None, String::new(), false)
 }
 
 #[tauri::command]
 fn get_state(state: State<AppState>) -> UiState {
-    let svc = state.service.lock().unwrap();
-    let cfg = state.saved.lock().unwrap();
-    ui_state(&svc, &cfg)
+    ui_state(state.inner())
 }
 
 #[tauri::command]
@@ -150,8 +261,78 @@ fn save_settings(state: State<AppState>, draft: Draft) -> Option<String> {
         }
     }
     *saved = cfg.clone();
+    drop(saved);
     state.service.lock().unwrap().apply(&cfg);
+    refresh_listen_model(state.inner());
     None
+}
+
+#[cfg(any(
+    all(target_os = "windows", target_arch = "x86_64"),
+    all(target_os = "linux", target_arch = "x86_64")
+))]
+fn refresh_listen_model(app: &AppState) {
+    let want = app.saved.lock().unwrap().stt_model.clone();
+    app.listen.lock().unwrap().refresh_model(&want);
+}
+
+#[cfg(not(any(
+    all(target_os = "windows", target_arch = "x86_64"),
+    all(target_os = "linux", target_arch = "x86_64")
+)))]
+fn refresh_listen_model(_app: &AppState) {}
+
+#[tauri::command]
+fn listen_start(state: State<AppState>) -> Option<String> {
+    #[cfg(any(
+        all(target_os = "windows", target_arch = "x86_64"),
+        all(target_os = "linux", target_arch = "x86_64")
+    ))]
+    {
+        let want = state.saved.lock().unwrap().stt_model.clone();
+        return state.listen.lock().unwrap().start(&want).err();
+    }
+    #[cfg(not(any(
+        all(target_os = "windows", target_arch = "x86_64"),
+        all(target_os = "linux", target_arch = "x86_64")
+    )))]
+    {
+        let _ = &state;
+        Some("Dictation is not supported on this computer".into())
+    }
+}
+
+#[tauri::command]
+fn listen_stop(state: State<AppState>) {
+    #[cfg(any(
+        all(target_os = "windows", target_arch = "x86_64"),
+        all(target_os = "linux", target_arch = "x86_64")
+    ))]
+    state.listen.lock().unwrap().stop();
+    #[cfg(not(any(
+        all(target_os = "windows", target_arch = "x86_64"),
+        all(target_os = "linux", target_arch = "x86_64")
+    )))]
+    let _ = &state;
+}
+
+#[tauri::command]
+fn download_stt_model(state: State<AppState>, id: String) -> Option<String> {
+    let Some(manifest) = &state.stt_manifest else {
+        return Some("No speech model list is set up".into());
+    };
+    let Some(entry) = manifest.models.iter().find(|e| e.id == id) else {
+        return Some("That speech model is not in the list".into());
+    };
+    state
+        .stt_installer
+        .start(stt_models::stt_dir(), entry.clone());
+    None
+}
+
+#[tauri::command]
+fn cancel_stt_download(state: State<AppState>) {
+    state.stt_installer.cancel();
 }
 
 #[tauri::command]
@@ -221,7 +402,11 @@ pub fn run() {
             download_voice,
             cancel_download,
             replay_last,
-            hide_window
+            hide_window,
+            listen_start,
+            listen_stop,
+            download_stt_model,
+            cancel_stt_download
         ])
         .setup(|app| {
             use tauri::menu::{Menu, MenuItem};
@@ -235,7 +420,15 @@ pub fn run() {
                 service: Mutex::new(svc),
                 saved: Mutex::new(cfg),
                 config_path,
+                stt_manifest: stt_models::load_manifest(),
+                stt_installer: SttInstaller::default(),
+                #[cfg(any(
+                    all(target_os = "windows", target_arch = "x86_64"),
+                    all(target_os = "linux", target_arch = "x86_64")
+                ))]
+                listen: Mutex::new(ListenService::new()),
             });
+            refresh_listen_model(app.state::<AppState>().inner());
 
             // Push UI state whenever anything changes (reply arrives, download
             // progress, speech starts or stops).
@@ -245,13 +438,18 @@ pub fn run() {
                 loop {
                     std::thread::sleep(Duration::from_millis(400));
                     let st = handle.state::<AppState>();
-                    let mut svc = st.service.lock().unwrap();
-                    if svc.installer.get() == Download::Done {
-                        *svc.installer.state.lock().unwrap() = Download::Idle;
-                        svc.refresh_voice();
+                    {
+                        let mut svc = st.service.lock().unwrap();
+                        if svc.installer.get() == Download::Done {
+                            *svc.installer.state.lock().unwrap() = Download::Idle;
+                            svc.refresh_voice();
+                        }
                     }
-                    let cfg = st.saved.lock().unwrap().clone();
-                    let ui = ui_state(&svc, &cfg);
+                    if st.stt_installer.get() == Download::Done {
+                        *st.stt_installer.state.lock().unwrap() = Download::Idle;
+                        refresh_listen_model(st.inner());
+                    }
+                    let ui = ui_state(st.inner());
                     if last.as_ref() != Some(&ui) {
                         let _ = handle.emit("rv-state", ui.clone());
                         last = Some(ui);
