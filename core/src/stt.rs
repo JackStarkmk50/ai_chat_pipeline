@@ -418,6 +418,25 @@ fn claim_stdout_for_protocol() -> std::io::Result<std::fs::File> {
     Err(std::io::Error::other("stdout claim not implemented on this OS"))
 }
 
+/// Headless engine proof for packaged builds: spawn the worker from THIS
+/// executable, load the model through the staged dynamic backends, and
+/// transcribe a beat of silence. Success means the shipped binary found and
+/// loaded libtranscribe + the ggml modules from its install layout.
+pub fn smoke(model_path: &std::path::Path) -> Result<String, SttError> {
+    let mut sup = Supervisor::new();
+    sup.load(model_path)?;
+    let silence = vec![0.0f32; 16_000];
+    let text = match sup.transcribe(&silence) {
+        Ok(t) => t.text,
+        Err(e) => {
+            let _ = sup.unload();
+            return Err(e);
+        }
+    };
+    sup.unload();
+    Ok(text)
+}
+
 pub fn run_worker() -> i32 {
     use std::io::BufReader;
     use transcribe_cpp::{BackendMask, Model};
