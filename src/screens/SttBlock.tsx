@@ -2,6 +2,13 @@ import type { Draft, UiState } from "../bridge";
 import { bridge } from "../bridge";
 import { Card, OutlineButton, Pill, PrimaryButton, ProgressBar } from "../components";
 
+const LICENSE_LINKS: Record<string, string> = {
+  "parakeet-unified-en-0.6b":
+    "https://www.nvidia.com/en-us/agreements/enterprise-software/nvidia-open-model-license/",
+  "whisper-large-v3-turbo": "https://huggingface.co/handy-computer/whisper-large-v3-turbo-gguf",
+  "whisper-small": "https://huggingface.co/handy-computer/whisper-small-gguf",
+};
+
 export function SttBlock({
   state,
   draft,
@@ -81,7 +88,21 @@ export function SttBlock({
           </select>
           {selected ? (
             <div className="mt-1 text-[13px] text-rvtx2">
-              {selected.description} Licence: {selected.license}.
+              {selected.description}
+            </div>
+          ) : null}
+          {selected ? (
+            <div className="mt-1 text-[13px] text-rvtx2">
+              Licence: {selected.license}.{" "}
+              {LICENSE_LINKS[selected.id] ? (
+                <button
+                  type="button"
+                  onClick={() => bridge.openLink(LICENSE_LINKS[selected.id])}
+                  className="text-rvor underline underline-offset-2"
+                >
+                  Read the terms
+                </button>
+              ) : null}
             </div>
           ) : null}
         </div>

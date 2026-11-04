@@ -71,11 +71,13 @@ export interface Bridge {
   listenStop(): Promise<void>;
   downloadStt(id: string): Promise<string | null>;
   cancelSttDownload(): Promise<void>;
+  openLink(url: string): Promise<void>;
   onState(cb: (s: UiState) => void): void;
 }
 
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
+import { openUrl } from "@tauri-apps/plugin-opener";
 
 const DEFAULT_DRAFT: Draft = {
   voice: "English, default voice",
@@ -106,6 +108,7 @@ function tauriBridge(): Bridge | null {
     listenStop: () => invoke<void>("listen_stop"),
     downloadStt: (id) => invoke<string | null>("download_stt_model", { id }),
     cancelSttDownload: () => invoke<void>("cancel_stt_download"),
+    openLink: (url) => openUrl(url),
     onState(cb) {
       listen<UiState>("rv-state", (e) => cb(e.payload));
     },
@@ -316,6 +319,9 @@ function mockBridge(): Bridge {
     cancelSttDownload: async () => {
       state.stt_download = { state: "idle" };
       emit();
+    },
+    openLink: async (url) => {
+      window.open(url, "_blank", "noopener");
     },
     onState(cb) {
       listeners.push(cb);

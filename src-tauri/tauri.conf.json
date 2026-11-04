@@ -32,6 +32,29 @@
       "icons/128x128.png",
       "icons/128x128@2x.png",
       "icons/icon.ico"
-    ]
+    ],
+    "linux": {
+      "deb": {
+        "depends": [
+          "libopenblas0"
+        ],
+        "files": {
+          "/usr/lib/Reply Voice": "transcribe-libs"
+        }
+      },
+      "rpm": {
+        "depends": [
+          "libopenblas.so.0()(64bit)"
+        ],
+        "files": {
+          "/usr/lib/Reply Voice": "transcribe-libs"
+        }
+      },
+      "appimage": {
+        "files": {
+          "/usr/lib": "transcribe-libs"
+        }
+      }
+    }
   }
 }

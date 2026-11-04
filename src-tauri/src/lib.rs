@@ -392,6 +392,7 @@ fn tray_icon() -> tauri::image::Image<'static> {
 
 pub fn run() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_opener::init())
         .invoke_handler(tauri::generate_handler![
             get_state,
             get_draft,
