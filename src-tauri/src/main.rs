@@ -26,8 +26,8 @@ fn main() {
                 std::process::exit(2);
             };
             match reply_voice::stt::smoke(std::path::Path::new(model)) {
-                Ok(text) => {
-                    println!("STT SMOKE OK ({} chars transcribed)", text.chars().count());
+                Ok(detail) => {
+                    println!("STT SMOKE OK: {detail}");
                     std::process::exit(0);
                 }
                 Err(e) => {

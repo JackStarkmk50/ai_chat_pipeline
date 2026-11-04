@@ -421,20 +421,26 @@ fn claim_stdout_for_protocol() -> std::io::Result<std::fs::File> {
 /// Headless engine proof for packaged builds: spawn the worker from THIS
 /// executable, load the model through the staged dynamic backends, and
 /// transcribe a beat of silence. Success means the shipped binary found and
-/// loaded libtranscribe + the ggml modules from its install layout.
+/// loaded libtranscribe + the ggml modules from its install layout. The
+/// returned string names the arch + backend + device the model actually
+/// bound to, so GPU use is proven from engine evidence, never inferred
+/// from speed. Covers only the model it is given: a Whisper run proves the
+/// Whisper path, not Parakeet's RNNT path.
 pub fn smoke(model_path: &std::path::Path) -> Result<String, SttError> {
     let mut sup = Supervisor::new();
     sup.load(model_path)?;
+    let bound = sup
+        .loaded
+        .as_ref()
+        .map(|l| format!("arch={} backend={} device={} on_gpu={}", l.arch, l.backend, l.device, l.on_gpu))
+        .unwrap_or_else(|| "bound=unknown".to_string());
     let silence = vec![0.0f32; 16_000];
-    let text = match sup.transcribe(&silence) {
-        Ok(t) => t.text,
-        Err(e) => {
-            let _ = sup.unload();
-            return Err(e);
-        }
+    let result = match sup.transcribe(&silence) {
+        Ok(t) => Ok(format!("{bound}; silence transcript: {:?}", t.text)),
+        Err(e) => Err(e),
     };
     sup.unload();
-    Ok(text)
+    result
 }
 
 pub fn run_worker() -> i32 {

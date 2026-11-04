@@ -82,12 +82,15 @@ jobs:
         run: |
           ls -la src-tauri/transcribe-libs/
           test "$(ls -A src-tauri/transcribe-libs/)" || { echo "staging produced no libraries"; exit 1; }
-      - name: Download a real speech model for the packaged-runtime smoke
+      - name: Download real speech models for the packaged-runtime smoke
         shell: bash
         run: |
           curl -L --fail --retry 3 -o "$RUNNER_TEMP/whisper-small-Q8_0.gguf" \
             "https://huggingface.co/handy-computer/whisper-small-gguf/resolve/c0214bd34be9296695486f838e0142f900803159/whisper-small-Q8_0.gguf"
           echo "9b9c8811bbcc82a7766f0fb0925614bdacb0923b2cc630daeac17108b655b860  $RUNNER_TEMP/whisper-small-Q8_0.gguf" | sha256sum -c -
+          curl -L --fail --retry 3 -o "$RUNNER_TEMP/parakeet-unified-en-0.6b-Q8_0.gguf" \
+            "https://huggingface.co/handy-computer/parakeet-unified-en-0.6b-gguf/resolve/7e948f21b7bdbac698d3318db9d350f1096f3b6c/parakeet-unified-en-0.6b-Q8_0.gguf"
+          echo "4b50b6dd862bf6e346929aaf4f5eaacec003bfa3f56462d6c874b41ef2f38795  $RUNNER_TEMP/parakeet-unified-en-0.6b-Q8_0.gguf" | sha256sum -c -
       - name: Verify the Linux bundles carry the runtime, then smoke the packaged engine
         if: runner.os == 'Linux'
         shell: bash
@@ -98,6 +101,7 @@ jobs:
           (cd "$RUNNER_TEMP" && "$GITHUB_WORKSPACE"/src-tauri/target/release/bundle/appimage/*.AppImage --appimage-extract >/dev/null)
           ls "$RUNNER_TEMP/squashfs-root/usr/lib/" | grep -E "libtranscribe|libggml-vulkan"
           "$RUNNER_TEMP/squashfs-root/usr/bin/ai_chat_pipeline" --replyvoice-stt-smoke "$RUNNER_TEMP/whisper-small-Q8_0.gguf"
+          "$RUNNER_TEMP/squashfs-root/usr/bin/ai_chat_pipeline" --replyvoice-stt-smoke "$RUNNER_TEMP/parakeet-unified-en-0.6b-Q8_0.gguf"
       - name: Verify the Windows installers carry the runtime, then smoke the packaged engine
         if: runner.os == 'Windows'
         shell: bash
@@ -107,6 +111,7 @@ jobs:
           "$SEVENZ" l src-tauri/target/release/bundle/nsis/*-setup.exe | grep -E "transcribe.dll|ggml-vulkan.dll"
           cp src-tauri/transcribe-libs/*.dll src-tauri/target/release/
           ./src-tauri/target/release/ai_chat_pipeline.exe --replyvoice-stt-smoke "$RUNNER_TEMP/whisper-small-Q8_0.gguf"
+          ./src-tauri/target/release/ai_chat_pipeline.exe --replyvoice-stt-smoke "$RUNNER_TEMP/parakeet-unified-en-0.6b-Q8_0.gguf"
       - name: Upload installer artifacts
         uses: actions/upload-artifact@v4
         with:
