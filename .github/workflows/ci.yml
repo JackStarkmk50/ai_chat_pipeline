@@ -11,8 +11,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
-      - name: Install Vulkan SDK (Windows)
-        if: runner.os == 'Windows'
+      - name: Install Vulkan SDK
         uses: humbletim/install-vulkan-sdk@v1.2
         with:
           version: 1.4.309.0
@@ -48,8 +47,7 @@ jobs:
           node-version: 22
           cache: npm
       - uses: dtolnay/rust-toolchain@stable
-      - name: Install Vulkan SDK (Windows)
-        if: runner.os == 'Windows'
+      - name: Install Vulkan SDK
         uses: humbletim/install-vulkan-sdk@v1.2
         with:
           version: 1.4.309.0
