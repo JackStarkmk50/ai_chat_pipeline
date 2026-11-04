@@ -1,4 +1,3 @@
-
 // Frontend <-> Rust bridge. In a plain browser (no Tauri), a small in-memory
 // mock backs the same contract so screens can be exercised and screenshotted.
 

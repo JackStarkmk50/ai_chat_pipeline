@@ -1,4 +1,3 @@
-
 //! Start with the computer. Off unless the user turns it on in Settings.
 use std::path::PathBuf;
 

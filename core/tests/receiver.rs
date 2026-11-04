@@ -1,4 +1,3 @@
-
 use reply_voice::config::{Config, ConfigError};
 use reply_voice::receiver;
 use reply_voice::speaker::{Engine, Speaker, espeak_wpm, windows_rate};

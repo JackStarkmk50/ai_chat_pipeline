@@ -1,4 +1,3 @@
-
 //! Local receiver. POST /speak with `Authorization: Bearer <token>` and body
 //! {"text": "..."}. Nothing but the reply text is accepted or kept.
 

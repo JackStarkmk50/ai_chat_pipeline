@@ -1,4 +1,3 @@
-
 {
   "name": "reply-voice",
   "private": true,
@@ -26,4 +25,3 @@
     "vite": "^6.0.5"
   }
 }
-

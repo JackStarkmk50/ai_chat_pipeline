@@ -1,4 +1,3 @@
-
 //! Tauri shell for Reply Voice. All real work lives in the `reply_voice` core crate;
 //! this layer only exposes it to the React UI through commands and a state event.
 

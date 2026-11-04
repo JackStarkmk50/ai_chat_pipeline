@@ -1,4 +1,3 @@
-
 import type { UiState } from "../bridge";
 import { bridge } from "../bridge";
 import { GhostButton, Header, OutlineButton, Pill, Screen } from "../components";

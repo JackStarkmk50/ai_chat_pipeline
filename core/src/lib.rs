@@ -1,4 +1,3 @@
-
 //! Reply Voice core: config, local receiver, speech queue.
 //! Only the approved reply text ever crosses the receiver. Nothing else is read or sent.
 

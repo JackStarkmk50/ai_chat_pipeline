@@ -1,4 +1,3 @@
-
 //! A local neural voice, run through the Piper program. No model is chosen or bundled: the voice
 //! to download comes from a manifest file the owner provides (see the README). Nothing is fetched
 //! until the user presses "Download voice", and every file is checked against the manifest's
