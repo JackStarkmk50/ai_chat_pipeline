@@ -206,7 +206,7 @@ fn tray_icon() -> tauri::image::Image<'static> {
             });
         }
     }
-    tauri::image::Image::from_owned_rgba(rgba, 32, 32)
+    tauri::image::Image::new_owned(rgba, 32, 32)
 }
 
 pub fn run() {
